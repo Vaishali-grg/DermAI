@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Large raw datasets and model binaries
+dataset/
+models/
+
+# User uploads & temporary outputs
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables & secrets
+.env
+*.log

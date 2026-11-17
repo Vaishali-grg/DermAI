@@ -1,0 +1,2956 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DermAI — Skin Assessment</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        rel="stylesheet"
+    >
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet"
+    >
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['"Space Grotesk"', 'sans-serif'],
+                        mono: ['"IBM Plex Mono"', 'monospace'],
+                    },
+
+                    colors: {
+                        brand: {
+                            50: '#EAF5F2',
+                            100: '#D6ECE5',
+                            200: '#AEDACE',
+                            300: '#7DC0AF',
+                            500: '#0B6E5C',
+                            600: '#0A5C4D',
+                            700: '#084A3E',
+                            900: '#0B2B24',
+                        },
+
+                        clay: {
+                            50: '#FBF3EC',
+                            100: '#F5E6DA',
+                            400: '#C98047',
+                            500: '#B5652E',
+                            600: '#9A5424',
+                        },
+
+                        ink: {
+                            DEFAULT: '#16221F',
+                            soft: '#5B6B67',
+                            faint: '#93A19D',
+                        }
+                    },
+
+                    boxShadow: {
+                        card:
+                            '0 1px 2px rgba(22,34,31,0.04), 0 12px 32px -12px rgba(22,34,31,0.10)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+
+        :root {
+            --bg: #F3F5F4;
+            --line: #E1E7E4;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            background: var(--bg);
+        }
+
+        body {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #D6DDD9;
+            border-radius: 10px;
+        }
+
+        /* =========================
+           MOTION
+        ========================= */
+
+        .fade-in {
+            animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeIn {
+
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulseRing {
+
+            0% {
+                transform: scale(0.9);
+                opacity: 0.55;
+            }
+
+            80%,
+            100% {
+                transform: scale(1.6);
+                opacity: 0;
+            }
+        }
+
+        .pulse-ring::before {
+
+            content: '';
+
+            position: absolute;
+            inset: 0;
+
+            border-radius: 9999px;
+
+            background: rgba(11, 110, 92, 0.18);
+
+            animation:
+                pulseRing
+                2s cubic-bezier(0.4, 0, 0.6, 1)
+                infinite;
+        }
+
+        @keyframes sweep {
+
+            0% {
+                transform: translateY(-6%);
+                opacity: 0;
+            }
+
+            15% {
+                opacity: 1;
+            }
+
+            85% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(106%);
+                opacity: 0;
+            }
+        }
+
+        .scan-line {
+
+            position: absolute;
+
+            left: 0;
+            right: 0;
+
+            height: 26%;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(11,110,92,0) 0%,
+                    rgba(11,110,92,0.28) 45%,
+                    rgba(126,214,192,0.55) 50%,
+                    rgba(11,110,92,0.28) 55%,
+                    rgba(11,110,92,0) 100%
+                );
+
+            animation:
+                sweep
+                2.6s
+                ease-in-out
+                infinite;
+        }
+
+        @keyframes barSweep {
+
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(220%);
+            }
+        }
+
+        .progress-sweep {
+
+            position: absolute;
+
+            inset: 0;
+
+            width: 40%;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    #0B6E5C,
+                    transparent
+                );
+
+            animation:
+                barSweep
+                1.4s
+                ease-in-out
+                infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            .fade-in,
+            .pulse-ring::before,
+            .scan-line,
+            .progress-sweep {
+
+                animation: none !important;
+            }
+        }
+
+        /* =========================
+           SKIN BAND
+        ========================= */
+
+        .layer-band {
+
+            height: 7px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #084A3E 0%,
+                    #0B6E5C 20%,
+                    #4FA593 42%,
+                    #BFE0D6 58%,
+                    #F0DCC7 74%,
+                    #C98047 88%,
+                    #9A5424 100%
+                );
+        }
+
+        /* =========================
+           UPLOAD
+        ========================= */
+
+        .drop-zone {
+
+            transition:
+                border-color 0.2s ease,
+                background-color 0.2s ease;
+        }
+
+        .drop-zone.drag-active {
+
+            border-color: #0B6E5C;
+
+            background-color: #EAF5F2;
+        }
+
+        .specimen-frame {
+
+            position: relative;
+
+            background-image:
+                linear-gradient(
+                    180deg,
+                    rgba(11,110,92,0.05) 0%,
+                    rgba(197,128,71,0.06) 100%
+                );
+        }
+
+        .tick {
+
+            position: absolute;
+
+            width: 14px;
+            height: 14px;
+
+            border-color:
+                rgba(255,255,255,0.85);
+        }
+
+        /* =========================
+           STEPPER
+        ========================= */
+
+        .step-dot {
+
+            width: 20px;
+            height: 20px;
+
+            border-radius: 9999px;
+
+            border:
+                1.5px solid var(--line);
+
+            background: #fff;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-family:
+                'IBM Plex Mono',
+                monospace;
+
+            font-size: 10px;
+
+            color: #93A19D;
+
+            transition:
+                all 0.25s ease;
+
+            flex-shrink: 0;
+        }
+
+        .step.active .step-dot {
+
+            border-color: #0B6E5C;
+
+            background: #0B6E5C;
+
+            color: #fff;
+        }
+
+        .step.done .step-dot {
+
+            border-color: #0B6E5C;
+
+            background: #EAF5F2;
+
+            color: #0B6E5C;
+        }
+
+        .step-label {
+
+            color: #93A19D;
+
+            transition:
+                color 0.25s ease;
+        }
+
+        .step.active .step-label,
+        .step.done .step-label {
+
+            color: #16221F;
+        }
+
+        .step-connector {
+
+            flex: 1;
+
+            height: 1px;
+
+            background: var(--line);
+
+            margin: 0 8px;
+        }
+
+        /* =========================
+           CONFIDENCE
+        ========================= */
+
+        .gauge-track {
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #F5E6DA 0%,
+                    #F5E6DA 34%,
+                    #EAF5F2 34%,
+                    #EAF5F2 68%,
+                    #D6ECE5 68%,
+                    #D6ECE5 100%
+                );
+        }
+
+        .gauge-fill {
+
+            background: #0B6E5C;
+
+            transition:
+                width
+                0.9s
+                cubic-bezier(0.16,1,0.3,1);
+        }
+
+        /* =========================
+           FOCUS
+        ========================= */
+
+        button:focus-visible,
+        [tabindex]:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible {
+
+            outline:
+                2px solid #0B6E5C;
+
+            outline-offset: 2px;
+        }
+
+        #resSummary p {
+            margin-bottom: 0.85em;
+        }
+
+        #resSummary p:last-child {
+            margin-bottom: 0;
+        }
+
+        #resSummary ul {
+            margin:
+                0.4em
+                0
+                0.85em
+                0.2em;
+        }
+
+        #resSummary li {
+            margin-bottom: 0.35em;
+        }
+
+        #resSummary li::marker {
+            color: #0B6E5C;
+        }
+
+        /* =========================
+           WEBCAM
+        ========================= */
+
+        .camera-video {
+
+            width: 100%;
+
+            height: 320px;
+
+            object-fit: cover;
+
+            border-radius: 1rem;
+
+            background: #111;
+
+            transform: scaleX(-1);
+        }
+
+        .camera-preview {
+
+            width: 100%;
+
+            height: 320px;
+
+            object-fit: cover;
+
+            border-radius: 1rem;
+
+            background: #111;
+        }
+
+        .camera-overlay {
+
+            position: absolute;
+
+            inset: 0;
+
+            pointer-events: none;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.35);
+
+            border-radius: 1rem;
+        }
+
+        .camera-corner {
+
+            position: absolute;
+
+            width: 24px;
+            height: 24px;
+
+            border-color: #fff;
+
+            opacity: 0.9;
+        }
+
+        .camera-top-left {
+
+            top: 14px;
+            left: 14px;
+
+            border-top: 2px solid;
+            border-left: 2px solid;
+        }
+
+        .camera-top-right {
+
+            top: 14px;
+            right: 14px;
+
+            border-top: 2px solid;
+            border-right: 2px solid;
+        }
+
+        .camera-bottom-left {
+
+            bottom: 14px;
+            left: 14px;
+
+            border-bottom: 2px solid;
+            border-left: 2px solid;
+        }
+
+        .camera-bottom-right {
+
+            bottom: 14px;
+            right: 14px;
+
+            border-bottom: 2px solid;
+            border-right: 2px solid;
+        }
+
+    </style>
+
+</head>
+
+
+<body
+    class="text-ink antialiased min-h-screen flex flex-col selection:bg-brand-100 selection:text-brand-900 font-sans"
+>
+
+<header
+    class="w-full py-6 px-4 flex justify-center items-center"
+>
+
+    <div class="flex items-center gap-2.5">
+
+        <svg
+            width="28"
+            height="28"
+            viewBox="0 0 28 28"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+        >
+
+            <rect
+                x="1"
+                y="1"
+                width="26"
+                height="26"
+                rx="8"
+                stroke="#0B6E5C"
+                stroke-width="1.4"
+            />
+
+            <path
+                d="M5 10.5 Q14 6.5 23 10.5"
+                stroke="#0B6E5C"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                fill="none"
+            />
+
+            <path
+                d="M5 15 Q14 11 23 15"
+                stroke="#0B6E5C"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                fill="none"
+                opacity="0.6"
+            />
+
+            <path
+                d="M5 19.5 Q14 15.5 23 19.5"
+                stroke="#B5652E"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                fill="none"
+                opacity="0.55"
+            />
+
+        </svg>
+
+        <h1
+            class="font-display font-semibold text-lg tracking-tight text-ink"
+        >
+            Derm<span class="font-normal text-ink-soft">AI</span>
+        </h1>
+
+    </div>
+
+</header>
+
+
+<main
+    class="flex-grow flex items-center justify-center p-4"
+>
+
+<div
+    class="w-full max-w-2xl bg-white rounded-[1.5rem] shadow-card border border-black/[0.03] overflow-hidden relative fade-in"
+>
+
+<div class="layer-band"></div>
+
+
+<!-- ==============================
+     STEPPER
+================================ -->
+
+<div
+    class="px-8 md:px-10 pt-6"
+    id="stepper"
+    aria-hidden="true"
+>
+
+    <div class="flex items-center">
+
+        <div
+            class="step active flex items-center gap-2"
+            id="step-upload"
+        >
+
+            <span class="step-dot">
+                1
+            </span>
+
+            <span
+                class="step-label text-xs font-mono uppercase tracking-wide"
+            >
+                Upload
+            </span>
+
+        </div>
+
+
+        <div class="step-connector"></div>
+
+
+        <div
+            class="step flex items-center gap-2"
+            id="step-analyze"
+        >
+
+            <span class="step-dot">
+                2
+            </span>
+
+            <span
+                class="step-label text-xs font-mono uppercase tracking-wide"
+            >
+                Analyze
+            </span>
+
+        </div>
+
+
+        <div class="step-connector"></div>
+
+
+        <div
+            class="step flex items-center gap-2"
+            id="step-report"
+        >
+
+            <span class="step-dot">
+                3
+            </span>
+
+            <span
+                class="step-label text-xs font-mono uppercase tracking-wide"
+            >
+                Report
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ==============================
+     FORM
+================================ -->
+
+<div
+    id="formSection"
+    class="p-8 md:p-10 pt-6"
+>
+
+<div class="mb-7">
+
+    <h2
+        class="text-2xl md:text-[1.7rem] font-display font-semibold text-ink mb-1.5 leading-tight"
+    >
+        Let's take a closer look
+    </h2>
+
+    <p
+        class="text-ink-soft text-sm leading-relaxed"
+    >
+        Upload a clear, well-lit photo or use your webcam
+        for an AI-assisted read.
+    </p>
+
+</div>
+
+
+<!-- ERROR -->
+
+<div
+    id="formError"
+    role="alert"
+    aria-live="polite"
+    class="hidden mb-5 flex items-start gap-2.5 bg-clay-50 border border-clay-100 text-clay-600 text-xs font-medium rounded-xl px-4 py-3"
+>
+
+    <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+
+    <span id="formErrorText"></span>
+
+</div>
+
+
+<form
+    id="analysisForm"
+    class="space-y-6"
+    novalidate
+>
+
+
+<!-- ==============================
+     IMAGE SECTION
+================================ -->
+
+<div>
+
+<div
+    id="dropZone"
+    class="drop-zone specimen-frame group border-2 border-dashed border-ink/15 hover:border-brand-500 rounded-2xl p-6 text-center cursor-pointer relative overflow-hidden"
+    tabindex="0"
+    role="button"
+    aria-label="Upload a photo"
+>
+
+
+<input
+    type="file"
+    id="imageInput"
+    accept="image/jpeg,image/png,image/webp"
+    class="hidden"
+>
+
+
+<!-- ==============================
+     NORMAL UPLOAD PLACEHOLDER
+================================ -->
+
+<div
+    id="uploadPlaceholder"
+    class="space-y-3 py-5"
+>
+
+    <div
+        class="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm relative pulse-ring"
+    >
+
+        <i
+            class="fa-solid fa-camera text-brand-500 text-lg relative z-10"
+        ></i>
+
+    </div>
+
+
+    <div>
+
+        <p
+            class="text-sm font-medium text-ink"
+        >
+            Tap to upload, or drag a photo here
+        </p>
+
+        <p
+            class="text-xs text-ink-faint mt-1 font-mono"
+        >
+            JPEG · PNG · WEBP, up to 8MB
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- ==============================
+     NORMAL IMAGE PREVIEW
+================================ -->
+
+<img
+    id="imagePreview"
+    alt="Selected skin image"
+    class="hidden w-full h-56 object-cover rounded-xl"
+>
+
+
+<!-- CORNERS -->
+
+<span
+    class="tick hidden border-t-2 border-l-2 rounded-tl-md"
+    style="top:8px; left:8px;"
+    data-corner
+></span>
+
+<span
+    class="tick hidden border-t-2 border-r-2 rounded-tr-md"
+    style="top:8px; right:8px;"
+    data-corner
+></span>
+
+<span
+    class="tick hidden border-b-2 border-l-2 rounded-bl-md"
+    style="bottom:8px; left:8px;"
+    data-corner
+></span>
+
+<span
+    class="tick hidden border-b-2 border-r-2 rounded-br-md"
+    style="bottom:8px; right:8px;"
+    data-corner
+></span>
+
+
+<!-- CHANGE PHOTO -->
+
+<div
+    id="changePhotoBtn"
+    class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-ink/75 backdrop-blur-sm text-white text-xs font-medium px-4 py-2 rounded-full"
+>
+    Change photo
+</div>
+
+
+</div>
+
+
+<!-- ==============================
+     WEBCAM BUTTON
+================================ -->
+
+<button
+    type="button"
+    id="openCameraBtn"
+    class="mt-3 w-full border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700 font-medium text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+>
+
+    <i class="fa-solid fa-video"></i>
+
+    Use webcam
+
+</button>
+
+
+<!-- ==============================
+     WEBCAM CONTAINER
+================================ -->
+
+<div
+    id="cameraSection"
+    class="hidden mt-4"
+>
+
+    <div class="relative rounded-2xl overflow-hidden bg-black">
+
+        <!-- LIVE CAMERA -->
+
+        <video
+            id="cameraVideo"
+            class="camera-video"
+            autoplay
+            playsinline
+            muted
+        ></video>
+
+
+        <!-- CAPTURE FRAME -->
+
+        <div class="camera-overlay">
+
+            <span
+                class="camera-corner camera-top-left"
+            ></span>
+
+            <span
+                class="camera-corner camera-top-right"
+            ></span>
+
+            <span
+                class="camera-corner camera-bottom-left"
+            ></span>
+
+            <span
+                class="camera-corner camera-bottom-right"
+            ></span>
+
+        </div>
+
+    </div>
+
+
+    <!-- CAMERA CONTROLS -->
+
+    <div
+        id="cameraControls"
+        class="flex gap-3 mt-3"
+    >
+
+        <button
+            type="button"
+            id="captureBtn"
+            class="flex-1 bg-ink hover:bg-[#223330] text-white font-medium text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+        >
+
+            <i class="fa-solid fa-camera"></i>
+
+            Capture photo
+
+        </button>
+
+
+        <button
+            type="button"
+            id="closeCameraBtn"
+            class="px-5 border border-ink/10 bg-white hover:bg-gray-50 text-ink font-medium text-sm py-3 rounded-xl transition-all"
+        >
+
+            Close
+
+        </button>
+
+    </div>
+
+
+    <!-- ==============================
+         CAPTURED PHOTO PREVIEW
+    ================================= -->
+
+    <div
+        id="capturedPhotoSection"
+        class="hidden"
+    >
+
+        <img
+            id="capturedPhoto"
+            class="camera-preview"
+            alt="Captured webcam photo"
+        >
+
+
+        <!-- RETAKE / USE PHOTO -->
+
+        <div class="flex gap-3 mt-3">
+
+            <button
+                type="button"
+                id="retakeBtn"
+                class="flex-1 border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700 font-medium text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+
+                <i class="fa-solid fa-rotate-left"></i>
+
+                Retake photo
+
+            </button>
+
+
+            <button
+                type="button"
+                id="useCapturedBtn"
+                class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+
+                <i class="fa-solid fa-check"></i>
+
+                Use photo
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+</div>
+
+
+<!-- ==============================
+     SYMPTOM NOTES
+================================ -->
+
+<div>
+
+<label
+    for="userText"
+    class="flex items-center gap-2 text-xs font-mono uppercase tracking-wide text-ink-soft mb-2"
+>
+
+    <i class="fa-solid fa-notes-medical text-brand-500"></i>
+
+    Symptom notes
+
+</label>
+
+
+<textarea
+    id="userText"
+    rows="3"
+    class="w-full text-sm border border-ink/10 bg-[#FAFBFA] rounded-xl p-4 focus:ring-2 focus:ring-brand-500/15 focus:border-brand-500 outline-none transition-all resize-none placeholder-ink-faint"
+    placeholder="E.g. It feels dry and gets red after I wash my face..."
+></textarea>
+
+</div>
+
+
+<!-- ==============================
+     SUBMIT
+================================ -->
+
+<button
+    type="submit"
+    id="submitBtn"
+    class="w-full bg-ink hover:bg-[#223330] text-white font-medium text-sm py-4 rounded-xl shadow-lg shadow-ink/10 transition-all flex items-center justify-center gap-2 transform active:scale-[0.98]"
+>
+
+    <span>
+        Run analysis
+    </span>
+
+    <i class="fa-solid fa-arrow-right text-xs"></i>
+
+</button>
+
+
+</form>
+
+</div>
+
+
+<!-- ==============================
+     LOADING
+================================ -->
+
+<div
+    id="loadingState"
+    class="hidden p-8 md:p-10 flex flex-col items-center text-center min-h-[440px]"
+>
+
+    <div class="w-full max-w-[220px] mb-6">
+
+        <div
+            class="relative w-full aspect-square rounded-2xl overflow-hidden bg-brand-50 border border-brand-100"
+        >
+
+            <img
+                id="scanImage"
+                alt=""
+                class="w-full h-full object-cover"
+            >
+
+            <div class="scan-line"></div>
+
+        </div>
+
+    </div>
+
+
+    <span
+        class="text-brand-600 text-[11px] font-mono font-semibold tracking-widest uppercase mb-2"
+    >
+        Analysis in progress
+    </span>
+
+
+    <h3
+        class="text-base font-display font-medium text-ink"
+        id="loadingTitle"
+        aria-live="polite"
+    >
+        Scanning stratum corneum...
+    </h3>
+
+
+    <div
+        class="relative w-40 h-[3px] bg-brand-100 rounded-full overflow-hidden mt-6"
+    >
+
+        <div class="progress-sweep"></div>
+
+    </div>
+
+</div>
+
+
+<!-- ==============================
+     RESULT
+================================ -->
+
+<div
+    id="resultState"
+    class="hidden"
+>
+
+<div
+    class="bg-ink text-white p-8 pb-10 relative overflow-hidden"
+>
+
+    <div
+        class="layer-band absolute top-0 left-0 right-0"
+    ></div>
+
+
+    <div class="relative z-10 pt-2">
+
+        <button
+            id="backBtn"
+            class="text-white/50 hover:text-white transition-colors mb-6 flex items-center gap-2 text-xs font-mono uppercase tracking-wide"
+        >
+
+            <i class="fa-solid fa-arrow-left"></i>
+
+            New assessment
+
+        </button>
+
+
+        <span
+            class="text-brand-300 text-[11px] font-mono font-semibold tracking-widest uppercase mb-1.5 block"
+        >
+            Analysis complete
+        </span>
+
+
+        <h3
+            id="resCondition"
+            class="text-2xl md:text-3xl font-display font-semibold capitalize leading-tight"
+        >
+            --
+        </h3>
+
+    </div>
+
+</div>
+
+
+<div class="p-8 md:p-10 space-y-8">
+
+
+<!-- CONFIDENCE -->
+
+<div
+    class="bg-[#FAFBFA] p-5 rounded-2xl border border-ink/[0.06]"
+>
+
+    <div
+        class="flex items-center justify-between mb-3"
+    >
+
+        <p
+            class="text-xs font-mono uppercase tracking-wide text-ink-soft"
+        >
+            Model certainty
+        </p>
+
+
+        <div
+            id="resConfidenceText"
+            class="text-xl font-display font-semibold text-brand-600"
+        >
+            0%
+        </div>
+
+    </div>
+
+
+    <div
+        class="gauge-track relative h-1.5 rounded-full overflow-hidden"
+    >
+
+        <div
+            id="confidenceMarker"
+            class="absolute top-1/2 -translate-y-1/2 w-[3px] h-3.5 bg-ink rounded-full"
+            style="left:0%"
+        ></div>
+
+    </div>
+
+
+    <div
+        class="flex justify-between text-[10px] font-mono uppercase tracking-wide text-ink-faint mt-1.5"
+    >
+
+        <span>Low</span>
+
+        <span>Moderate</span>
+
+        <span>High</span>
+
+    </div>
+
+</div>
+
+
+<!-- ASSESSMENT -->
+
+<div>
+
+    <h4
+        class="flex items-center gap-2 text-sm font-mono uppercase tracking-wide text-ink-soft mb-3"
+    >
+
+        <i class="fa-solid fa-file-medical text-brand-500"></i>
+
+        Clinical assessment
+
+    </h4>
+
+
+    <div
+        id="resSummary"
+        class="text-sm text-ink/80 leading-relaxed"
+    ></div>
+
+</div>
+
+
+<!-- SOURCES -->
+
+<div>
+
+    <h4
+        class="text-sm font-mono uppercase tracking-wide text-ink-soft mb-3"
+    >
+        Medical literature matches
+    </h4>
+
+
+    <ul
+        id="resSources"
+        class="space-y-2"
+    ></ul>
+
+</div>
+
+
+<!-- DISCLAIMER -->
+
+<div
+    class="bg-clay-50 border border-clay-100 rounded-xl p-4 flex items-start gap-3"
+>
+
+    <i
+        class="fa-solid fa-circle-exclamation text-clay-500 mt-0.5"
+    ></i>
+
+
+    <p
+        id="resDisclaimer"
+        class="text-xs text-clay-600 leading-relaxed"
+    ></p>
+
+</div>
+
+
+</div>
+
+</div>
+
+</div>
+
+</main>
+
+
+<footer
+    class="w-full py-6 text-center text-[11px] font-mono text-ink-faint"
+>
+
+    <p>
+        Powered by EfficientNet-B2 &amp; ChromaDB
+    </p>
+
+</footer>
+
+
+<script>
+
+/* ============================================================
+   ELEMENTS
+============================================================ */
+
+const imageInput =
+    document.getElementById('imageInput');
+
+const dropZone =
+    document.getElementById('dropZone');
+
+const imagePreview =
+    document.getElementById('imagePreview');
+
+const uploadPlaceholder =
+    document.getElementById('uploadPlaceholder');
+
+const changePhotoBtn =
+    document.getElementById('changePhotoBtn');
+
+const corners =
+    document.querySelectorAll('[data-corner]');
+
+const form =
+    document.getElementById('analysisForm');
+
+const formError =
+    document.getElementById('formError');
+
+const formErrorText =
+    document.getElementById('formErrorText');
+
+const userText =
+    document.getElementById('userText');
+
+
+/* ============================================================
+   CAMERA ELEMENTS
+============================================================ */
+
+const openCameraBtn =
+    document.getElementById('openCameraBtn');
+
+const cameraSection =
+    document.getElementById('cameraSection');
+
+const cameraVideo =
+    document.getElementById('cameraVideo');
+
+const captureBtn =
+    document.getElementById('captureBtn');
+
+const closeCameraBtn =
+    document.getElementById('closeCameraBtn');
+
+const capturedPhotoSection =
+    document.getElementById('capturedPhotoSection');
+
+const capturedPhoto =
+    document.getElementById('capturedPhoto');
+
+const retakeBtn =
+    document.getElementById('retakeBtn');
+
+const useCapturedBtn =
+    document.getElementById('useCapturedBtn');
+
+
+/* ============================================================
+   SECTIONS
+============================================================ */
+
+const formSection =
+    document.getElementById('formSection');
+
+const loadingState =
+    document.getElementById('loadingState');
+
+const resultState =
+    document.getElementById('resultState');
+
+const backBtn =
+    document.getElementById('backBtn');
+
+const loadingTitle =
+    document.getElementById('loadingTitle');
+
+const scanImage =
+    document.getElementById('scanImage');
+
+const stepper =
+    document.getElementById('stepper');
+
+
+/* ============================================================
+   CONSTANTS
+============================================================ */
+
+const MAX_FILE_MB = 8;
+
+let cameraStream = null;
+
+let capturedBlob = null;
+
+let capturedFile = null;
+
+
+/* ============================================================
+   LOADING TEXT
+============================================================ */
+
+const loadingTexts = [
+
+    "Scanning stratum corneum...",
+
+    "Mapping epidermal texture...",
+
+    "Cross-referencing dermal layer...",
+
+    "Querying medical vector database...",
+
+    "Compiling clinical summary..."
+
+];
+
+
+/* ============================================================
+   STEPPER
+============================================================ */
+
+function setStep(name) {
+
+    const order = [
+        'upload',
+        'analyze',
+        'report'
+    ];
+
+    const idx =
+        order.indexOf(name);
+
+    order.forEach((step, i) => {
+
+        const el =
+            document.getElementById(
+                'step-' + step
+            );
+
+        el.classList.remove(
+            'active',
+            'done'
+        );
+
+        if (i < idx) {
+
+            el.classList.add('done');
+
+        }
+
+        if (i === idx) {
+
+            el.classList.add('active');
+
+        }
+
+    });
+
+}
+
+
+/* ============================================================
+   ERROR
+============================================================ */
+
+function showFormError(msg) {
+
+    formErrorText.textContent = msg;
+
+    formError.classList.remove(
+        'hidden'
+    );
+
+}
+
+
+function clearFormError() {
+
+    formError.classList.add(
+        'hidden'
+    );
+
+    formErrorText.textContent = '';
+
+}
+
+
+/* ============================================================
+   STOP CAMERA
+============================================================ */
+
+function stopCamera() {
+
+    if (cameraStream) {
+
+        cameraStream
+            .getTracks()
+            .forEach(track => {
+
+                track.stop();
+
+            });
+
+        cameraStream = null;
+
+    }
+
+    cameraVideo.srcObject = null;
+
+}
+
+
+/* ============================================================
+   OPEN CAMERA
+============================================================ */
+
+async function openCamera() {
+
+    clearFormError();
+
+    try {
+
+        if (!navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia) {
+
+            showFormError(
+                'Your browser does not support webcam access.'
+            );
+
+            return;
+
+        }
+
+
+        stopCamera();
+
+
+        cameraStream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video: {
+                    facingMode: "user",
+                    width: {
+                        ideal: 1280
+                    },
+                    height: {
+                        ideal: 720
+                    }
+                },
+
+                audio: false
+
+            });
+
+
+        cameraVideo.srcObject =
+            cameraStream;
+
+
+        cameraSection.classList.remove(
+            'hidden'
+        );
+
+
+        capturedPhotoSection.classList.add(
+            'hidden'
+        );
+
+
+        capturedBlob = null;
+
+        capturedFile = null;
+
+
+        await cameraVideo.play();
+
+
+        openCameraBtn.classList.add(
+            'hidden'
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Camera error:",
+            error
+        );
+
+        if (
+            error.name ===
+            "NotAllowedError"
+        ) {
+
+            showFormError(
+                'Camera permission was denied. Please allow camera access in your browser.'
+            );
+
+        } else if (
+            error.name ===
+            "NotFoundError"
+        ) {
+
+            showFormError(
+                'No camera was found on this device.'
+            );
+
+        } else {
+
+            showFormError(
+                'Unable to access the webcam. Please check your browser camera permissions.'
+            );
+
+        }
+
+    }
+
+}
+
+
+/* ============================================================
+   CAPTURE PHOTO
+============================================================ */
+
+function capturePhoto() {
+
+    if (
+        !cameraVideo.videoWidth ||
+        !cameraVideo.videoHeight
+    ) {
+
+        showFormError(
+            'Camera is not ready yet. Please wait a moment and try again.'
+        );
+
+        return;
+
+    }
+
+
+    const canvas =
+        document.createElement(
+            'canvas'
+        );
+
+
+    canvas.width =
+        cameraVideo.videoWidth;
+
+    canvas.height =
+        cameraVideo.videoHeight;
+
+
+    const ctx =
+        canvas.getContext('2d');
+
+
+    /*
+       The live video is mirrored using CSS.
+       We mirror the captured image too,
+       so the preview looks exactly like
+       what the user saw.
+    */
+
+    ctx.translate(
+        canvas.width,
+        0
+    );
+
+    ctx.scale(
+        -1,
+        1
+    );
+
+
+    ctx.drawImage(
+        cameraVideo,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    canvas.toBlob(
+
+        function(blob) {
+
+            if (!blob) {
+
+                showFormError(
+                    'Could not capture the photo. Please try again.'
+                );
+
+                return;
+
+            }
+
+
+            capturedBlob = blob;
+
+
+            capturedFile =
+                new File(
+                    [blob],
+                    'webcam-capture.jpg',
+                    {
+                        type:
+                            'image/jpeg'
+                    }
+                );
+
+
+            const previewURL =
+                URL.createObjectURL(
+                    blob
+                );
+
+
+            capturedPhoto.src =
+                previewURL;
+
+
+            capturedPhotoSection.classList.remove(
+                'hidden'
+            );
+
+
+            /*
+               IMPORTANT:
+               Keep camera open while showing
+               captured photo.
+
+               This allows RETAKE to immediately
+               go back to live camera.
+            */
+
+            cameraVideo.classList.add(
+                'hidden'
+            );
+
+            cameraControls.classList.add(
+                'hidden'
+            );
+
+        },
+
+        'image/jpeg',
+
+        0.92
+
+    );
+
+}
+
+
+/* ============================================================
+   RETAKE PHOTO
+============================================================ */
+
+async function retakePhoto() {
+
+    clearFormError();
+
+
+    capturedBlob = null;
+
+    capturedFile = null;
+
+
+    capturedPhotoSection.classList.add(
+        'hidden'
+    );
+
+
+    cameraVideo.classList.remove(
+        'hidden'
+    );
+
+
+    cameraControls.classList.remove(
+        'hidden'
+    );
+
+
+    /*
+       If camera stream somehow stopped,
+       reopen it.
+    */
+
+    if (!cameraStream) {
+
+        await openCamera();
+
+    }
+
+}
+
+
+/* ============================================================
+   USE CAPTURED PHOTO
+============================================================ */
+
+function useCapturedPhoto() {
+
+    if (!capturedFile) {
+
+        showFormError(
+            'Please capture a photo first.'
+        );
+
+        return;
+
+    }
+
+
+    handleFile(
+        capturedFile
+    );
+
+
+    stopCamera();
+
+
+    cameraSection.classList.add(
+        'hidden'
+    );
+
+
+    openCameraBtn.classList.remove(
+        'hidden'
+    );
+
+
+    capturedPhotoSection.classList.add(
+        'hidden'
+    );
+
+
+    cameraVideo.classList.remove(
+        'hidden'
+    );
+
+
+    cameraControls.classList.remove(
+        'hidden'
+    );
+
+}
+
+
+/* ============================================================
+   CAMERA BUTTON EVENTS
+============================================================ */
+
+openCameraBtn.addEventListener(
+    'click',
+    function(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        openCamera();
+
+    }
+);
+
+
+captureBtn.addEventListener(
+    'click',
+    function(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        capturePhoto();
+
+    }
+);
+
+
+retakeBtn.addEventListener(
+    'click',
+    function(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        retakePhoto();
+
+    }
+);
+
+
+useCapturedBtn.addEventListener(
+    'click',
+    function(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        useCapturedPhoto();
+
+    }
+);
+
+
+closeCameraBtn.addEventListener(
+    'click',
+    function(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        stopCamera();
+
+        cameraSection.classList.add(
+            'hidden'
+        );
+
+        openCameraBtn.classList.remove(
+            'hidden'
+        );
+
+    }
+);
+
+
+/* ============================================================
+   FILE HANDLING
+============================================================ */
+
+function handleFile(file) {
+
+    if (!file) {
+        return;
+    }
+
+
+    if (
+        !file.type.startsWith(
+            'image/'
+        )
+    ) {
+
+        showFormError(
+            'Please upload an image file (JPEG, PNG, or WEBP).'
+        );
+
+        return;
+
+    }
+
+
+    if (
+        file.size >
+        MAX_FILE_MB * 1024 * 1024
+    ) {
+
+        showFormError(
+            `That image is larger than ${MAX_FILE_MB}MB. Please choose a smaller file.`
+        );
+
+        return;
+
+    }
+
+
+    clearFormError();
+
+
+    /*
+       Put the file into the hidden input.
+       This is important because the existing
+       /api/analyze code expects imageInput.files[0].
+    */
+
+    try {
+
+        const dt =
+            new DataTransfer();
+
+        dt.items.add(file);
+
+        imageInput.files =
+            dt.files;
+
+    } catch (err) {
+
+        console.warn(
+            "Could not assign file to input:",
+            err
+        );
+
+    }
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload =
+        function(event) {
+
+            imagePreview.src =
+                event.target.result;
+
+            imagePreview.classList.remove(
+                'hidden'
+            );
+
+            changePhotoBtn.classList.remove(
+                'hidden'
+            );
+
+            uploadPlaceholder.classList.add(
+                'hidden'
+            );
+
+            corners.forEach(
+                c =>
+                    c.classList.remove(
+                        'hidden'
+                    )
+            );
+
+
+            dropZone.classList.remove(
+                'p-6',
+                'border-dashed'
+            );
+
+            dropZone.classList.add(
+                'p-0',
+                'border-solid'
+            );
+
+        };
+
+
+    reader.readAsDataURL(file);
+
+}
+
+
+/* ============================================================
+   UPLOAD CLICK
+============================================================ */
+
+dropZone.addEventListener(
+    'click',
+    function(e) {
+
+        /*
+           Do not open file picker if
+           clicking camera controls.
+        */
+
+        if (
+            e.target.closest(
+                '#openCameraBtn'
+            )
+        ) {
+            return;
+        }
+
+
+        imageInput.click();
+
+    }
+);
+
+
+/* ============================================================
+   KEYBOARD UPLOAD
+============================================================ */
+
+dropZone.addEventListener(
+    'keydown',
+    function(e) {
+
+        if (
+            e.key === 'Enter' ||
+            e.key === ' '
+        ) {
+
+            e.preventDefault();
+
+            imageInput.click();
+
+        }
+
+    }
+);
+
+
+/* ============================================================
+   FILE CHANGE
+============================================================ */
+
+imageInput.addEventListener(
+    'change',
+    function(e) {
+
+        handleFile(
+            e.target.files[0]
+        );
+
+    }
+);
+
+
+/* ============================================================
+   DRAG / DROP
+============================================================ */
+
+[
+    'dragenter',
+    'dragover'
+].forEach(
+    function(evt) {
+
+        dropZone.addEventListener(
+            evt,
+            function(e) {
+
+                e.preventDefault();
+
+                e.stopPropagation();
+
+                dropZone.classList.add(
+                    'drag-active'
+                );
+
+            }
+        );
+
+    }
+);
+
+
+[
+    'dragleave',
+    'dragend'
+].forEach(
+    function(evt) {
+
+        dropZone.addEventListener(
+            evt,
+            function(e) {
+
+                e.preventDefault();
+
+                e.stopPropagation();
+
+                dropZone.classList.remove(
+                    'drag-active'
+                );
+
+            }
+        );
+
+    }
+);
+
+
+dropZone.addEventListener(
+    'drop',
+    function(e) {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        dropZone.classList.remove(
+            'drag-active'
+        );
+
+
+        const file =
+            e.dataTransfer.files &&
+            e.dataTransfer.files[0];
+
+
+        handleFile(file);
+
+    }
+);
+
+
+/* ============================================================
+   CHANGE PHOTO
+============================================================ */
+
+changePhotoBtn.addEventListener(
+    'click',
+    function(e) {
+
+        e.stopPropagation();
+
+        imageInput.click();
+
+    }
+);
+
+
+/* ============================================================
+   SAFE HTML
+============================================================ */
+
+function escapeHtml(str) {
+
+    const div =
+        document.createElement(
+            'div'
+        );
+
+    div.textContent =
+        str;
+
+    return div.innerHTML;
+
+}
+
+
+/* ============================================================
+   FORMAT MODEL RESPONSE
+============================================================ */
+
+function formatModelResponse(text) {
+
+    const lines =
+        text.split('\n');
+
+    let html = '';
+
+    let inList = false;
+
+
+    lines.forEach(
+        function(rawLine) {
+
+            const line =
+                rawLine.trim();
+
+
+            if (!line) {
+
+                if (inList) {
+
+                    html += '</ul>';
+
+                    inList = false;
+
+                }
+
+                return;
+
+            }
+
+
+            const bulletMatch =
+                line.match(
+                    /^[-•]\s+(.*)/
+                );
+
+
+            const applyBold =
+                function(s) {
+
+                    return escapeHtml(s)
+                        .replace(
+                            /\*\*(.*?)\*\*/g,
+                            '<strong class="text-ink font-semibold">$1</strong>'
+                        );
+
+                };
+
+
+            if (bulletMatch) {
+
+                if (!inList) {
+
+                    html +=
+                        '<ul class="list-disc list-inside space-y-1.5">';
+
+                    inList = true;
+
+                }
+
+
+                html +=
+                    `<li>${applyBold(bulletMatch[1])}</li>`;
+
+            } else {
+
+                if (inList) {
+
+                    html += '</ul>';
+
+                    inList = false;
+
+                }
+
+
+                html +=
+                    `<p>${applyBold(line)}</p>`;
+
+            }
+
+        }
+    );
+
+
+    if (inList) {
+
+        html += '</ul>';
+
+    }
+
+
+    return html;
+
+}
+
+
+/* ============================================================
+   CONFIDENCE
+============================================================ */
+
+function confidenceTier(pct) {
+
+    if (pct < 34) {
+
+        return {
+            label: 'Low',
+            color: '#B5652E'
+        };
+
+    }
+
+
+    if (pct < 68) {
+
+        return {
+            label: 'Moderate',
+            color: '#0B6E5C'
+        };
+
+    }
+
+
+    return {
+        label: 'High',
+        color: '#0A5C4D'
+    };
+
+}
+
+
+/* ============================================================
+   FORM SUBMIT
+============================================================ */
+
+form.addEventListener(
+    'submit',
+    async function(e) {
+
+        e.preventDefault();
+
+
+        const file =
+            imageInput.files[0];
+
+
+        const text =
+            userText.value.trim();
+
+
+        /* =========================
+           VALIDATE IMAGE
+        ========================= */
+
+        if (!file) {
+
+            showFormError(
+                'Please upload a photo or capture one using the webcam before running the analysis.'
+            );
+
+            dropZone.focus();
+
+            return;
+
+        }
+
+
+        /* =========================
+           VALIDATE TEXT
+        ========================= */
+
+        if (!text) {
+
+            showFormError(
+                'Add a quick note about your symptoms so the assessment has context.'
+            );
+
+            userText.focus();
+
+            return;
+
+        }
+
+
+        clearFormError();
+
+
+        /* =========================
+           STOP CAMERA
+        ========================= */
+
+        stopCamera();
+
+
+        /* =========================
+           FORM DATA
+        ========================= */
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            'image',
+            file
+        );
+
+
+        formData.append(
+            'user_text',
+            text
+        );
+
+
+        /* =========================
+           UI
+        ========================= */
+
+        scanImage.src =
+            imagePreview.src;
+
+
+        formSection.classList.add(
+            'hidden'
+        );
+
+
+        resultState.classList.add(
+            'hidden'
+        );
+
+
+        loadingState.classList.remove(
+            'hidden'
+        );
+
+
+        setStep(
+            'analyze'
+        );
+
+
+        let textIndex = 0;
+
+
+        const textInterval =
+            setInterval(
+                function() {
+
+                    textIndex =
+                        (textIndex + 1) %
+                        loadingTexts.length;
+
+                    loadingTitle.textContent =
+                        loadingTexts[textIndex];
+
+                },
+                1400
+            );
+
+
+        try {
+
+            /* =========================
+               API CALL
+            ========================= */
+
+            const response =
+                await fetch(
+                    '/api/analyze',
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+
+            let data;
+
+
+            try {
+
+                data =
+                    await response.json();
+
+            } catch (jsonError) {
+
+                throw new Error(
+                    'Server returned an invalid response.'
+                );
+
+            }
+
+
+            clearInterval(
+                textInterval
+            );
+
+
+            /* =========================
+               SUCCESS
+            ========================= */
+
+            if (response.ok) {
+
+                document
+                    .getElementById(
+                        'resCondition'
+                    )
+                    .textContent =
+                    data.prediction.display_name;
+
+
+                const confPercentage =
+                    Math.max(
+                        0,
+                        Math.min(
+                            100,
+                            data.prediction.confidence * 100
+                        )
+                    );
+
+
+                document
+                    .getElementById(
+                        'resConfidenceText'
+                    )
+                    .textContent =
+                    confPercentage.toFixed(1) +
+                    '%';
+
+
+                const tier =
+                    confidenceTier(
+                        confPercentage
+                    );
+
+
+                const marker =
+                    document.getElementById(
+                        'confidenceMarker'
+                    );
+
+
+                marker.style.left =
+                    `calc(${confPercentage}% - 1.5px)`;
+
+
+                marker.style.backgroundColor =
+                    tier.color;
+
+
+                document
+                    .getElementById(
+                        'resSummary'
+                    )
+                    .innerHTML =
+                    formatModelResponse(
+                        data.model_response || ''
+                    );
+
+
+                document
+                    .getElementById(
+                        'resDisclaimer'
+                    )
+                    .textContent =
+                    data.disclaimer || '';
+
+
+                const sourcesList =
+                    document.getElementById(
+                        'resSources'
+                    );
+
+
+                sourcesList.innerHTML =
+                    '';
+
+
+                (
+                    data.medical_sources ||
+                    []
+                ).forEach(
+                    function(src) {
+
+                        const li =
+                            document.createElement(
+                                'li'
+                            );
+
+
+                        li.className =
+                            'flex items-center justify-between p-3 bg-[#FAFBFA] border border-ink/[0.06] rounded-xl text-xs';
+
+
+                        const left =
+                            document.createElement(
+                                'div'
+                            );
+
+
+                        left.className =
+                            'flex items-center gap-3 text-ink/80 min-w-0';
+
+
+                        const icon =
+                            document.createElement(
+                                'i'
+                            );
+
+
+                        icon.className =
+                            'fa-solid fa-file-medical text-brand-500 bg-brand-50 p-2 rounded-lg';
+
+
+                        const nameSpan =
+                            document.createElement(
+                                'span'
+                            );
+
+
+                        nameSpan.className =
+                            'font-medium truncate max-w-[200px] sm:max-w-xs';
+
+
+                        nameSpan.textContent =
+                            src.document;
+
+
+                        left.appendChild(
+                            icon
+                        );
+
+                        left.appendChild(
+                            nameSpan
+                        );
+
+
+                        const pageSpan =
+                            document.createElement(
+                                'span'
+                            );
+
+
+                        pageSpan.className =
+                            'text-ink-faint bg-white px-2 py-1 rounded shadow-sm font-mono shrink-0 ml-3';
+
+
+                        pageSpan.textContent =
+                            `Page ${src.page}`;
+
+
+                        li.appendChild(
+                            left
+                        );
+
+                        li.appendChild(
+                            pageSpan
+                        );
+
+
+                        sourcesList.appendChild(
+                            li
+                        );
+
+                    }
+                );
+
+
+                loadingState.classList.add(
+                    'hidden'
+                );
+
+
+                resultState.classList.remove(
+                    'hidden'
+                );
+
+
+                resultState.classList.add(
+                    'fade-in'
+                );
+
+
+                setStep(
+                    'report'
+                );
+
+
+            } else {
+
+                formSection.classList.remove(
+                    'hidden'
+                );
+
+
+                loadingState.classList.add(
+                    'hidden'
+                );
+
+
+                setStep(
+                    'upload'
+                );
+
+
+                showFormError(
+                    data.detail ||
+                    'Something went wrong while analyzing the photo. Please try again.'
+                );
+
+            }
+
+
+        } catch (err) {
+
+            clearInterval(
+                textInterval
+            );
+
+
+            console.error(
+                'Analysis error:',
+                err
+            );
+
+
+            formSection.classList.remove(
+                'hidden'
+            );
+
+
+            loadingState.classList.add(
+                'hidden'
+            );
+
+
+            setStep(
+                'upload'
+            );
+
+
+            /*
+               Show the actual error instead
+               of always saying "Network error".
+            */
+
+            showFormError(
+                err.message ||
+                'Unable to connect to the analysis server.'
+            );
+
+        }
+
+    }
+);
+
+
+/* ============================================================
+   RESET UI
+============================================================ */
+
+backBtn.addEventListener(
+    'click',
+    resetUI
+);
+
+
+function resetUI() {
+
+    stopCamera();
+
+
+    capturedBlob = null;
+
+    capturedFile = null;
+
+
+    form.reset();
+
+
+    clearFormError();
+
+
+    imagePreview.classList.add(
+        'hidden'
+    );
+
+
+    imagePreview.src =
+        '';
+
+
+    changePhotoBtn.classList.add(
+        'hidden'
+    );
+
+
+    uploadPlaceholder.classList.remove(
+        'hidden'
+    );
+
+
+    corners.forEach(
+        c =>
+            c.classList.add(
+                'hidden'
+            )
+    );
+
+
+    dropZone.classList.add(
+        'p-6',
+        'border-dashed'
+    );
+
+
+    dropZone.classList.remove(
+        'p-0',
+        'border-solid'
+    );
+
+
+    cameraSection.classList.add(
+        'hidden'
+    );
+
+
+    openCameraBtn.classList.remove(
+        'hidden'
+    );
+
+
+    capturedPhotoSection.classList.add(
+        'hidden'
+    );
+
+
+    cameraVideo.classList.remove(
+        'hidden'
+    );
+
+
+    cameraControls.classList.remove(
+        'hidden'
+    );
+
+
+    resultState.classList.add(
+        'hidden'
+    );
+
+
+    loadingState.classList.add(
+        'hidden'
+    );
+
+
+    formSection.classList.remove(
+        'hidden'
+    );
+
+
+    formSection.classList.add(
+        'fade-in'
+    );
+
+
+    setStep(
+        'upload'
+    );
+
+}
+
+
+/* ============================================================
+   PAGE EXIT SAFETY
+============================================================ */
+
+window.addEventListener(
+    'beforeunload',
+    function() {
+
+        stopCamera();
+
+    }
+);
+
+</script>
+
+</body>
+
+</html>
